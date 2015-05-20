@@ -4,7 +4,7 @@ public class CONSTANTS
 {
 	public static int goalWeight = 0;
 	public static int myWeight = 0;
-	public static double threshold = .1;
+	public static double threshold = .4;
 	public static int DISABLE_LENGTH = 30;
 
     /*
