@@ -33,6 +33,7 @@ import com.parse.ParseQuery;
 import com.parse.ParseException;
 import com.parse.SaveCallback;
 
+import android.net.ConnectivityManager;
 /*
  * Adapted from:
  * http://developer.android.com/samples/BluetoothLeGatt/src/com.example.android.bluetoothlegatt/BluetoothLeService.html
@@ -79,6 +80,7 @@ public class RFduinoService extends Service {
     static int SWALLOW_COUNT = 0;
     static int food = 0;
     static int beverage = 0;
+    static boolean needsMergeWithDB;
 
     String SWALLOW_ID = "SwallowCount";
     String FOOD_ID = "FoodCount";
@@ -496,13 +498,18 @@ public class RFduinoService extends Service {
 
         SharedPreferences pref = this.getApplicationContext().getSharedPreferences("MyPref", 0);
         String id = pref.getString("parse_object_id", "empty");
+        boolean isOnline = isOnline();
 
-        if (id == "empty") {
+        if (isOnline)
+             Log.d("Internet Status:", " has internet");
+        if (id == "empty" || !isOnline) {
             SWALLOW_COUNT = 0;
             food = 0;
             beverage = 0;
             //createTodayGraph(food, beverage);
         }
+        if (!isOnline)
+               needsMergeWithDB = true;
         else {
             ParseQuery<ParseObject> query = ParseQuery.getQuery("UserData");
             query.getInBackground(id, new GetCallback<ParseObject>() {
@@ -526,6 +533,10 @@ public class RFduinoService extends Service {
 
     }
     void syncDataWithDatabase() {
+
+        boolean isOnline = isOnline();
+        if (!isOnline)
+               return;
 
         SharedPreferences pref = this.getApplicationContext().getSharedPreferences("MyPref", 0);
         final SharedPreferences.Editor editor = pref.edit();
@@ -556,6 +567,15 @@ public class RFduinoService extends Service {
             query.getInBackground(id, new GetCallback<ParseObject>() {
                 public void done(ParseObject data, ParseException e) {
                     if (e == null) {
+
+                        if (needsMergeWithDB) {
+                            //get current database values
+                            SWALLOW_COUNT += data.getInt(SWALLOW_ID);
+                            food += data.getInt(FOOD_ID);
+                            beverage += data.getInt(BEVERAGE_ID);
+                            needsMergeWithDB = false;
+                        }
+
                         data.put(SWALLOW_ID, SWALLOW_COUNT);
                         data.put(FOOD_ID, food);
                         data.put(BEVERAGE_ID, beverage);
@@ -564,6 +584,14 @@ public class RFduinoService extends Service {
                 }
             });
         }
+    }
+
+    public boolean isOnline() {
+        ConnectivityManager cm =
+                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        return cm.getActiveNetworkInfo() != null &&
+                cm.getActiveNetworkInfo().isConnectedOrConnecting();
     }
 }
 
