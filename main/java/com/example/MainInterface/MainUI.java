@@ -5,6 +5,7 @@ import com.wearsens.fragments.MyEatingFragment;
 import com.wearsens.fragments.MyHabitsFragment;
 import com.wearsens.fragments.ProfileFragment;
 import com.wearsens.fragments.SettingsFragment;
+import com.wearsens.fragments.StoreDataFragment;
 
 import android.app.Activity;
 import android.app.Fragment;
@@ -14,6 +15,7 @@ import android.os.Bundle;
 import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.View;
@@ -33,15 +35,24 @@ public class MainUI extends Activity {
 
 
 
-	String[] menuItems = { "My Eating", "My Habits"};
+    //Change this menu to get more items on the left menu
+    //Then update the switch statement in method "selectItem"
+    //The XML element that handles this view is the List View "left_drawer"
+    //in activity_main.xml
+	String[] menuItems = { "My Eating", "My Habits", "My Profile (TODO)",
+            "My Settings (TODO)", "Store Data"};
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
     {
+        Log.d("MainUI", "in the oncreate");
+
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_ACTION_BAR);
 		setContentView(R.layout.activity_main);
 
+
+        //Create MyEatingFragment as our starting fragment
 		Fragment fragment = new MyEatingFragment();
 		FragmentManager fragmentManager = getFragmentManager();
 		fragmentManager.beginTransaction().replace(R.id.content_frame, fragment).commit();
@@ -93,17 +104,23 @@ public class MainUI extends Activity {
 		switch (position)
         {
 		case 0:
+            Log.d("MainUI", "Creating Eating Fragment");
 			fragment = new MyEatingFragment();
 			break;
 		case 1:
 			fragment = new MyHabitsFragment();
 			break;
 		case 2:
+            Log.d("MainUI", "Creating Profile Fragment");
 			fragment = new ProfileFragment();
 			break;
 		case 3:
 			fragment = new SettingsFragment();
 			break;
+
+        case 4:
+            fragment = new StoreDataFragment();
+            break;
 
 		default:
 			break;

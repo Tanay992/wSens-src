@@ -64,6 +64,8 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
     public MyEatingFragment() {
     }
 
+    //We reference VibrationDataList directly in StoreDataFragment
+    //So if we change the name here we need to update in StoreDataFragment also
     public static ArrayList<SensorData> VibrationDataList = new ArrayList<SensorData>();
     public static ArrayList<Double> VibrationDeviationList = new ArrayList<Double>();
 

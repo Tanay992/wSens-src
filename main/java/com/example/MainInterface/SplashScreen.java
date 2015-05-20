@@ -23,11 +23,12 @@ public class SplashScreen extends Activity{
 		 * This timer helps us detect when the device has been turned off. Ie.
 		 * if the last received data does not change for some time
 		 */
-		Log.d("BT", "in the oncreate");
+		Log.d("SplashScreen", "in the oncreate");
 	        new Handler().postDelayed(new Runnable(){
             @Override
             public void run() {
-                
+
+                //Create an intent to launch the MainUI.
                 Intent mainIntent = new Intent(SplashScreen.this,MainUI.class);
                 SplashScreen.this.startActivity(mainIntent);
                 SplashScreen.this.finish();
