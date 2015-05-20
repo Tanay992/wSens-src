@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/background3"
+    android:orientation="vertical" >
+
+    <com.example.MainInterface.CustomTextView
+        android:id="@+id/txtLabel"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_marginBottom="10dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/background_c"
+        android:gravity="center_horizontal"
+        android:text="Select User"
+        android:textColor="#FAFAFF"
+        android:textSize="40dp" />
+    
+</LinearLayout>
