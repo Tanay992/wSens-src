@@ -80,11 +80,6 @@ public class MainUI extends Activity {
 
 		drawer.setDrawerListener(drawerToggle);
 
-        //PARSE
-        Parse.enableLocalDatastore(this);
-        Parse.initialize(this, "Dmjvhy9oBSoQogAmMdN7EucZg24reQkWSLBijHJl", "kZxdH4bs6CpLpH7BUSCu7HESweNiZaDivmkjU5TZ");
-
-
     }
 
 	private class DrawerItemClickListener implements ListView.OnItemClickListener

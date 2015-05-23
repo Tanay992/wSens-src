@@ -14,19 +14,25 @@
         android:textColor="#FAFAFF"
         android:textSize="40dp" />
 
-    <EditText android:id="@+id/food_tag"
-        android:layout_weight="1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:textColor="#FAFAFF"
-        android:hint="Enter Food Tag" />
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="fill_parent"
+        android:layout_height="152dp"
+        android:layout_gravity="center">
 
-    <Button
-        android:id="@+id/send_data_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Send Data"
-        android:layout_gravity="center_horizontal|bottom" />
+        <EditText android:id="@+id/food_tag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="#FAFAFF"
+            android:hint="Enter Food Tag" />
+
+        <Button
+            android:id="@+id/send_data_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Send Data"
+            android:layout_gravity="center_horizontal" />
+    </LinearLayout>
 
 </FrameLayout>
