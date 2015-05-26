@@ -2,8 +2,14 @@
 
 package com.BluetoothSetup;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Date;
 import java.util.UUID;
 
 import android.Manifest;
@@ -32,8 +38,13 @@ import com.parse.ParseObject;
 import com.parse.ParseQuery;
 import com.parse.ParseException;
 import com.parse.SaveCallback;
-
+import com.parse.FindCallback;
 import android.net.ConnectivityManager;
+import android.util.Pair;
+
+import org.json.JSONArray;
+import com.example.MainInterface.Stats;
+
 /*
  * Adapted from:
  * http://developer.android.com/samples/BluetoothLeGatt/src/com.example.android.bluetoothlegatt/BluetoothLeService.html
@@ -77,15 +88,24 @@ public class RFduinoService extends Service {
     static int called = 0;
     static double mean, stddev, stddev_last;
 
-    static int SWALLOW_COUNT = 0;
-    static int food = 0;
-    static int beverage = 0;
+    static int TODAY_SWALLOW_COUNT = 0;
+    static int TODAY_FOOD_COUNT = 0;
+    static int TODAY_BEVERAGE_COUNT = 0;
     static boolean needsMergeWithDB;
 
     String SWALLOW_ID = "SwallowCount";
     String FOOD_ID = "FoodCount";
     String BEVERAGE_ID = "BeverageCount";
 
+    String FOOD_LIST_ID = "FoodHistory";
+    String BEVERAGE_LIST_ID = "BeverageHistory";
+    String SWALLOW_LIST_ID = "SwallowHistory";
+
+    //stores counts for past 30 days
+    //each object is a map from the date as a string to the count
+    static List<Map<String,Integer>>dailyFoodCounts;
+    static List<Map<String,Integer>>dailySwallowCounts;
+    static List<Map<String,Integer>>dailyBeverageCounts;
 
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
@@ -165,9 +185,8 @@ public class RFduinoService extends Service {
 
     private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic)
     {
-        if (UUID_RECEIVE.equals(characteristic.getUuid())) 
+        if (UUID_RECEIVE.equals(characteristic.getUuid()))
         {
-            final Intent intent = new Intent(action);
             //intent.putExtra(EXTRA_DATA, characteristic.getValue());
             //mark: sends data
             String ascii = HexAsciiHelper.bytesToAsciiMaybe(characteristic.getValue());
@@ -175,11 +194,7 @@ public class RFduinoService extends Service {
                 boolean shouldBroadcast = ProcessReceivedData(ascii);
                 if (shouldBroadcast)
                 {
-                   intent.putExtra(SWALLOW_ID, SWALLOW_COUNT);
-                   intent.putExtra(FOOD_ID, food);
-                   intent.putExtra(BEVERAGE_ID, beverage);
-                   Log.d("BT", "sending broadcast");
-                   sendBroadcast(intent, Manifest.permission.BLUETOOTH);
+                    sendDataToEatingFrag(action);
                 }
             }
 
@@ -231,7 +246,7 @@ public class RFduinoService extends Service {
         }
 
         mBluetoothAdapter = mBluetoothManager.getAdapter();
-        if (mBluetoothAdapter == null) 
+        if (mBluetoothAdapter == null)
         {
             Log.e(TAG, "Unable to obtain a BluetoothAdapter.");
             return false;
@@ -250,7 +265,7 @@ public class RFduinoService extends Service {
      *         {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
      *         callback.
      */
-    public boolean connect(final String address) 
+    public boolean connect(final String address)
     {
         if (mBluetoothAdapter == null || address == null)
         {
@@ -260,7 +275,7 @@ public class RFduinoService extends Service {
 
         // Previously connected device.  Try to reconnect.
         if (mBluetoothDeviceAddress != null && address.equals(mBluetoothDeviceAddress)
-                && mBluetoothGatt != null) 
+                && mBluetoothGatt != null)
         {
             Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.");
             return mBluetoothGatt.connect();
@@ -315,7 +330,7 @@ public class RFduinoService extends Service {
         mBluetoothGatt.readCharacteristic(characteristic);
     }
 
-    public boolean send(byte[] data) 
+    public boolean send(byte[] data)
     {
         if (mBluetoothGatt == null || mBluetoothGattService == null) {
             Log.w(TAG, "BluetoothGatt not initialized");
@@ -344,14 +359,9 @@ public class RFduinoService extends Service {
         return filter;
     }
 
-    private void addData(byte[] data) {
-        String ascii = HexAsciiHelper.bytesToAsciiMaybe(data);
-        if (ascii != null) {
-            ProcessReceivedData(ascii);
-        }
-    }
-
     public boolean ProcessReceivedData(String data) {
+        //returns true if detected swallow or TODAY_BEVERAGE_COUNT
+
     /*
         if (Connected == false)
         {
@@ -396,8 +406,6 @@ public class RFduinoService extends Service {
     {
 
         called++;
-        //List<SensorData> VibrationDataList = MyEatingFragment.VibrationDataList;
-        //List<Double> VibrationDeviationList = MyEatingFragment.VibrationDeviationList;
         mean = 0;
         stddev = 0;
 		/*
@@ -462,21 +470,22 @@ public class RFduinoService extends Service {
         {
             if (DISABLE_COUNTER >= DISABLE_LENGTH)
             {
-                Log.d("success", "detected swallows");
-				//SWALLOW DETECTED
+                Log.d("success", "detected the swallows");
+                //SWALLOW DETECTED
                 DISABLE_COUNTER = 0;
                 swallowDetected = true;
-                //if (MyEatingFragment.RegisterSwallows == true)
+                //if (RegisterSwallows == true)
                 //{
-                    SWALLOW_COUNT++;
-                    // beverage = addElement(beverage, sw_count);
-                    food++;
 
-                    syncDataWithDatabase();
-                    //TO DO: Add to fragment
-                    //countIncreased = true;
-                    //createTodayGraph(food, beverage);
-                    Log.d("BT", "increasing swallow count");
+                TODAY_SWALLOW_COUNT++;
+                // TODAY_BEVERAGE_COUNT = addElement(TODAY_BEVERAGE_COUNT, sw_count);
+                TODAY_FOOD_COUNT++;
+                updateLists();
+                syncDataWithDatabase();
+                //TO DO: Add to fragment
+                //countIncreased = true;
+                //createTodayGraph(TODAY_FOOD_COUNT, TODAY_BEVERAGE_COUNT);
+                Log.d("BT", "increasing the swallow count");
 
                 //}
 
@@ -485,47 +494,43 @@ public class RFduinoService extends Service {
 /*
         if (swallowDetected == false && called % 40 == 0) {
 
-            // beverage = addElement(beverage, SWALLOW_COUNT);
-            beverage++;
+            // TODAY_BEVERAGE_COUNT = addElement(TODAY_BEVERAGE_COUNT, TODAY_SWALLOW_COUNT);
+            TODAY_BEVERAGE_COUNT++;
             return true;
-            //createTodayGraph(food, beverage);
+            //createTodayGraph(TODAY_FOOD_COUNT, TODAY_BEVERAGE_COUNT);
         }
 */
-            return swallowDetected;
+        return swallowDetected;
 
     }
     void loadDataFromDatabase() {
 
         SharedPreferences pref = this.getApplicationContext().getSharedPreferences("MyPref", 0);
+        final SharedPreferences.Editor editor = pref.edit();
         String id = pref.getString("parse_object_id", "empty");
         boolean isOnline = isOnline();
 
-        if (isOnline)
-             Log.d("Internet Status:", " has internet");
         if (id == "empty" || !isOnline) {
-            SWALLOW_COUNT = 0;
-            food = 0;
-            beverage = 0;
-            //createTodayGraph(food, beverage);
+            String key = getTodayDateAsStringKey();
+            setupEmptyDataValues(key);
         }
-        if (!isOnline)
-               needsMergeWithDB = true;
+
+        if (!isOnline) {
+            needsMergeWithDB = true;
+        }
         else {
             ParseQuery<ParseObject> query = ParseQuery.getQuery("UserData");
             query.getInBackground(id, new GetCallback<ParseObject>() {
                 public void done(ParseObject onlineData, ParseException e) {
                     if (e == null) {
-                        SWALLOW_COUNT = onlineData.getInt(SWALLOW_ID);
-                        food = onlineData.getInt(FOOD_ID);
-                        beverage = onlineData.getInt(BEVERAGE_ID);
-                        //Date dataDate = onlineData.getDate("Date");
-                        /*
-                        if (!sameAsCurrentDay(dataDate))
-                        {
-                            SWALLOW_COUNT = food = beverage = 0;
-                        }
-                        */
-                        //createTodayGraph(food, beverage);
+                        dailyFoodCounts = onlineData.getList(FOOD_LIST_ID);
+                        dailyBeverageCounts = onlineData.getList(BEVERAGE_LIST_ID);
+                        dailySwallowCounts = onlineData.getList(SWALLOW_LIST_ID);
+                        setupCurrentDayCounts();
+                    }
+                    else{
+                        String key = getTodayDateAsStringKey();
+                        setupEmptyDataValues(key);
                     }
                 }
             });
@@ -536,7 +541,7 @@ public class RFduinoService extends Service {
 
         boolean isOnline = isOnline();
         if (!isOnline)
-               return;
+            return;
 
         SharedPreferences pref = this.getApplicationContext().getSharedPreferences("MyPref", 0);
         final SharedPreferences.Editor editor = pref.edit();
@@ -544,21 +549,15 @@ public class RFduinoService extends Service {
         if (id == "empty")
         {
             final ParseObject data = new ParseObject("UserData");
-            data.put(SWALLOW_ID, SWALLOW_COUNT);
-            data.put(FOOD_ID, food);
-            data.put(BEVERAGE_ID, beverage);
-
+            setDatabaseValues(data);
             data.saveInBackground(new SaveCallback() {
                 public void done(ParseException e) {
                     if (e == null) {
-                        String id2 = data.getObjectId();
-                        editor.putString("parse_object_id", id2);
+                        editor.putString("parse_object_id", data.getObjectId());
                         editor.commit();
                     }
                 }
             });
-
-
         }
         else
         {
@@ -567,18 +566,10 @@ public class RFduinoService extends Service {
             query.getInBackground(id, new GetCallback<ParseObject>() {
                 public void done(ParseObject data, ParseException e) {
                     if (e == null) {
-
                         if (needsMergeWithDB) {
-                            //get current database values
-                            SWALLOW_COUNT += data.getInt(SWALLOW_ID);
-                            food += data.getInt(FOOD_ID);
-                            beverage += data.getInt(BEVERAGE_ID);
-                            needsMergeWithDB = false;
+                            resolveMergeConflicts(data);
                         }
-
-                        data.put(SWALLOW_ID, SWALLOW_COUNT);
-                        data.put(FOOD_ID, food);
-                        data.put(BEVERAGE_ID, beverage);
+                        setDatabaseValues(data);
                         data.saveInBackground();
                     }
                 }
@@ -586,12 +577,182 @@ public class RFduinoService extends Service {
         }
     }
 
-    public boolean isOnline() {
+    boolean isOnline() {
         ConnectivityManager cm =
                 (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
         return cm.getActiveNetworkInfo() != null &&
                 cm.getActiveNetworkInfo().isConnectedOrConnecting();
+    }
+
+    void sendDataToEatingFrag(final String action)
+
+    {
+        final Intent intent = new Intent(action);
+        intent.putExtra(SWALLOW_ID, TODAY_SWALLOW_COUNT);
+        intent.putExtra(FOOD_ID, TODAY_FOOD_COUNT);
+        intent.putExtra(BEVERAGE_ID, TODAY_BEVERAGE_COUNT);
+        // Log.d("BT", "sending broadcast");
+        sendBroadcast(intent, Manifest.permission.BLUETOOTH);
+    }
+
+    void resolveMergeConflicts(ParseObject data)
+    {
+        dailyFoodCounts = data.getList(FOOD_LIST_ID);
+        dailyBeverageCounts = data.getList(BEVERAGE_LIST_ID);
+        dailySwallowCounts = data.getList(SWALLOW_LIST_ID);        //if same date, update last item only
+
+        //if different date, append date
+        Calendar cur =  Calendar.getInstance();
+        Date lastUpdate = data.getUpdatedAt();
+        Calendar last = Calendar.getInstance();
+        last.setTime(lastUpdate);
+        last.add(Calendar.HOUR, -7); //convert to PST
+
+
+        if (cur.get(Calendar.MONTH) == last.get(Calendar.MONTH) && cur.get(Calendar.DATE) == last.get(Calendar.DATE))
+        {
+            TODAY_SWALLOW_COUNT += data.getInt(SWALLOW_ID);
+            TODAY_FOOD_COUNT += data.getInt(FOOD_ID);
+            updateLists();
+        }
+
+        else
+        {
+            Map<String, Integer> newDayFood = new HashMap<String, Integer>();
+            Map<String, Integer> newDaySwallows = new HashMap<String, Integer>();
+
+            String key = getTodayDateAsStringKey();
+            newDayFood.put(key, TODAY_FOOD_COUNT);
+            newDaySwallows.put(key, TODAY_SWALLOW_COUNT);
+
+            dailyFoodCounts.add(newDayFood);
+            dailySwallowCounts.add(newDaySwallows);
+        }
+        needsMergeWithDB = false;
+    }
+
+    void setDatabaseValues(ParseObject data)
+    {
+        data.remove(SWALLOW_LIST_ID);
+        data.remove(FOOD_LIST_ID);
+
+        data.addAll(SWALLOW_LIST_ID, dailySwallowCounts);
+        data.addAll(FOOD_LIST_ID, dailyFoodCounts);
+
+        data.put(SWALLOW_ID, TODAY_SWALLOW_COUNT);
+        data.put(FOOD_ID, TODAY_FOOD_COUNT);
+        //data.put(BEVERAGE_LIST_ID, TODAY_BEVERAGE_COUNT);
+    }
+
+    void setupCurrentDayCounts()
+    {
+        TODAY_SWALLOW_COUNT = 0;
+        TODAY_FOOD_COUNT = 0;
+
+        //check date of last stored count
+        // if same day, add to lasts item, otherwise create new item
+        String key = getTodayDateAsStringKey();
+
+        setupSwallowCount(key);
+        setupFoodCount(key);
+
+    }
+
+    void setupEmptyDataValues(String key) {
+
+        dailyFoodCounts = new ArrayList<Map<String, Integer>>();
+        //dailyBeverageCounts = new ArrayList<Map<String, Integer>>();
+        dailySwallowCounts = new ArrayList<Map<String, Integer>>();
+
+//       TODAY_BEVERAGE_COUNT = 0;
+        TODAY_FOOD_COUNT = 0;
+        TODAY_SWALLOW_COUNT = 0;
+
+        Map<String, Integer> newDaySwallow = new HashMap<String, Integer>();
+        Map<String, Integer> newDayFood = new HashMap<String, Integer>();
+
+        newDaySwallow.put(key, TODAY_SWALLOW_COUNT);
+        dailySwallowCounts.add(newDaySwallow);
+
+        newDayFood.put(key, TODAY_FOOD_COUNT);
+        dailyFoodCounts.add(newDayFood);
+
+    }
+
+
+    void updateLists()
+    {
+
+        String key = getTodayDateAsStringKey();
+        Map<String,Integer> lastSwallowDay = dailySwallowCounts.get(dailySwallowCounts.size()-1);
+        lastSwallowDay.put(key, TODAY_SWALLOW_COUNT);
+
+        Map<String,Integer> lastFoodDay = dailyFoodCounts.get(dailyFoodCounts.size()-1);
+        lastFoodDay.put(key, TODAY_FOOD_COUNT);
+    }
+
+    String getTodayDateAsStringKey()
+    {
+        Calendar todayDate = Calendar.getInstance();
+        return Integer.toString(todayDate.get(Calendar.MONTH)+1) + " " + Integer.toString(todayDate.get(Calendar.DATE));
+    }
+
+    void setupSwallowCount (String key) {
+
+        if (dailySwallowCounts.size() > 0)
+        {
+            Map<String,Integer> lastSwallowDay = dailySwallowCounts.get(dailySwallowCounts.size()-1);
+
+            if (lastSwallowDay.containsKey(key)) //data for date exists in database
+            {
+                TODAY_SWALLOW_COUNT = lastSwallowDay.get(key);
+            }
+            else
+            {
+                TODAY_SWALLOW_COUNT = 0;
+                Map<String, Integer> newDay = new HashMap<String, Integer>();
+                newDay.put(key, TODAY_SWALLOW_COUNT);
+                dailySwallowCounts.add(newDay);
+            }
+        }
+        //no data has been stored
+        else{
+            TODAY_SWALLOW_COUNT = 0;
+            Map<String, Integer> newDay = new HashMap<String, Integer>();
+            newDay.put(key, TODAY_SWALLOW_COUNT);
+            dailySwallowCounts = new ArrayList<Map<String, Integer>>();
+            dailySwallowCounts.add(newDay);
+        }
+    }
+
+    void setupFoodCount(String key) {
+
+        if (dailyFoodCounts.size() > 0)
+        {
+            Map<String,Integer> lastFoodDay = dailyFoodCounts.get(dailyFoodCounts.size()-1);
+
+            if (lastFoodDay.containsKey(key)) //data for date exists in database
+            {
+                TODAY_FOOD_COUNT = lastFoodDay.get(key);
+            }
+            else
+            {
+                TODAY_FOOD_COUNT = 0;
+                Map<String, Integer> newDay = new HashMap<String, Integer>();
+                newDay.put(key, TODAY_FOOD_COUNT);
+                dailyFoodCounts.add(newDay);
+            }
+        }
+        //no data has been stored
+        else{
+            TODAY_FOOD_COUNT = 0;
+            Map<String, Integer> newDay = new HashMap<String, Integer>();
+            newDay.put(key, TODAY_FOOD_COUNT);
+            dailyFoodCounts = new ArrayList<Map<String, Integer>>();
+            dailyFoodCounts.add(newDay);
+        }
+
     }
 }
 

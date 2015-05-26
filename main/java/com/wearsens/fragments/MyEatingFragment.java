@@ -64,8 +64,6 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
     public MyEatingFragment() {
     }
 
-    //We reference VibrationDataList directly in StoreDataFragment
-    //So if we change the name here we need to update in StoreDataFragment also
     public static ArrayList<SensorData> VibrationDataList = new ArrayList<SensorData>();
     public static ArrayList<Double> VibrationDeviationList = new ArrayList<Double>();
 
@@ -556,7 +554,6 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
                 food = intent.getIntExtra(FOOD_ID, food);
                 beverage = intent.getIntExtra(BEVERAGE_ID, beverage);
                 SWALLOW_COUNT = intent.getIntExtra(SWALLOW_ID, SWALLOW_COUNT);
-                Log.d("shouldn't happen", "called");
                 createTodayGraph(food, beverage);
                 //addData(intent.getByteArrayExtra(RFduinoService.EXTRA_DATA));
             }
@@ -653,7 +650,6 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
                     // beverage = addElement(beverage, sw_count);
                     food++;
 
-                    syncDataWithDatabase();
                     countIncreased = true;
                     createTodayGraph(food, beverage);
                     Log.d("BT", "increasing swallow count");
@@ -681,48 +677,6 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
 
     //NEW FUNCTIONS
 
-
-    void syncDataWithDatabase() {
-
-        SharedPreferences pref = this.getActivity().getApplicationContext().getSharedPreferences("MyPref", 0);
-        final Editor editor = pref.edit();
-        String id = pref.getString("parse_object_id", "empty");
-        if (id == "empty")
-        {
-            final ParseObject data = new ParseObject("UserData");
-            data.put(SWALLOW_ID, SWALLOW_COUNT);
-            data.put(FOOD_ID, food);
-            data.put(BEVERAGE_ID, beverage);
-
-            data.saveInBackground(new SaveCallback() {
-                public void done(ParseException e) {
-                    if (e == null) {
-                          String id2 = data.getObjectId();
-                        editor.putString("parse_object_id", id2);
-                        editor.commit();
-                    }
-                }
-            });
-
-
-        }
-        else
-        {
-            ParseQuery<ParseObject> query = ParseQuery.getQuery("UserData");
-
-            query.getInBackground(id, new GetCallback<ParseObject>() {
-                public void done(ParseObject data, ParseException e) {
-                    if (e == null) {
-                        data.put(SWALLOW_ID, SWALLOW_COUNT);
-                        data.put(FOOD_ID, food);
-                        data.put(BEVERAGE_ID, beverage);
-                        data.saveInBackground();
-                    }
-                }
-            });
-        }
-    }
-
     void loadDataFromDatabase() {
 
         SharedPreferences pref = this.getActivity().getApplicationContext().getSharedPreferences("MyPref", 0);
@@ -739,16 +693,28 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
             query.getInBackground(id, new GetCallback<ParseObject>() {
                 public void done(ParseObject onlineData, ParseException e) {
                     if (e == null) {
-                        SWALLOW_COUNT = onlineData.getInt(SWALLOW_ID);
-                        food = onlineData.getInt(FOOD_ID);
-                        beverage = onlineData.getInt(BEVERAGE_ID);
-                        //Date dataDate = onlineData.getDate("Date");
-                        /*
-                        if (!sameAsCurrentDay(dataDate))
+                        Date lastUpdate = onlineData.getUpdatedAt();
+                        Calendar last = Calendar.getInstance();
+                        last.setTime(lastUpdate);
+                        last.add(Calendar.HOUR, -7); //convert to PST
+
+                        Calendar cur = Calendar.getInstance();
+                        if (cur.get(Calendar.MONTH) == last.get(Calendar.MONTH) && cur.get(Calendar.DATE) == last.get(Calendar.DATE))
                         {
-                            SWALLOW_COUNT = food = beverage = 0;
+                            if (onlineData.getInt(SWALLOW_ID) > SWALLOW_COUNT)
+                                SWALLOW_COUNT = onlineData.getInt(SWALLOW_ID);
+                            if (onlineData.getInt(FOOD_ID) > food)
+                                food = onlineData.getInt(FOOD_ID);
+                            // if (onlineData.getInt(BEVERAGE_ID) > beverage)
+                            //    beverage = onlineData.getInt(BEVERAGE_ID);
                         }
-                        */
+
+                        else
+                        {
+                            SWALLOW_COUNT = 0;
+                            food = 0;
+                        }
+
                         createTodayGraph(food, beverage);
                     }
                 }
@@ -762,15 +728,5 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
         //TO DO: Implement
     }
 
-    Boolean sameAsCurrentDay(Date d) {
 
-        Calendar calendar = Calendar.getInstance();
-        int curDay = calendar.get(Calendar.DAY_OF_WEEK);
-
-        Calendar c = Calendar.getInstance();
-        c.setTime(d);
-        int dataDay = c.get(Calendar.DAY_OF_WEEK);
-
-        return (curDay == dataDay);
-    }
 }
