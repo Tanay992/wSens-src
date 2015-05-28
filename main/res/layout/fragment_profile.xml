@@ -30,6 +30,29 @@
             android:layout_height="wrap_content"
             android:textColor="#FAFAFF"
             android:textSize="20dp" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:id="@+id/logoutButton"
+            android:layout_gravity="right" />
+
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent">
+
+        <Switch
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Admin Mode"
+            android:textColor="#FAFAFF"
+            android:id="@+id/switch1" />
+
     </LinearLayout>
 
 </LinearLayout>

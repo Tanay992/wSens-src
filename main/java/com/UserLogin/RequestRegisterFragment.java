@@ -18,11 +18,12 @@ import com.parse.ParseException;
 
 import com.example.bluetoothsensor.R;
 import com.parse.ParseUser;
+import com.parse.SignUpCallback;
 
 /**
  * A simple {@link Fragment} subclass.
  */
-public class RequestRegisterFragment extends Fragment implements OnClickListener{
+public class RequestRegisterFragment extends Fragment{
 
     View register_view;
     TextView output_log;
@@ -41,23 +42,61 @@ public class RequestRegisterFragment extends Fragment implements OnClickListener
 
         //Listen if someone clicks the register button
         Button register = (Button) register_view.findViewById(R.id.register_button);
-        register.setOnClickListener(this);
+        register.setOnClickListener(new RegisterOnClickListener());
 
         //Set output log for error messages
         output_log = (TextView) register_view.findViewById(R.id.output_log);
         return register_view;
     }
 
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.register_button:
-                String username = ((EditText) register_view.findViewById(R.id.username)).getText().toString();
-                String password = ((EditText) register_view.findViewById(R.id.password)).getText().toString();
-                ParseUser currentUser = new ParseUser();
-                currentUser.setUsername(username);
-                currentUser.setPassword(password);
-                String o_log = "Error with Registration";
+    public class RegisterOnClickListener implements OnClickListener {
 
+        public void onClick(final View v) {
+            switch (v.getId()) {
+                case R.id.register_button:
+                    String username = ((EditText) register_view.findViewById(R.id.username)).getText().toString();
+                    String password = ((EditText) register_view.findViewById(R.id.password)).getText().toString();
+                    ParseUser currentUser = new ParseUser();
+                    currentUser.setUsername(username);
+                    currentUser.setPassword(password);
+                    String o_log = "";
+
+                    if (username == null || username.equals("")) {
+                        o_log = "Please Enter a Username";
+                        output_log.setText(o_log);
+                    } else if (password == null || password.equals("")) {
+                        o_log = "Please Enter a Password";
+                        output_log.setText(o_log);
+                    } else {
+                        //Disable the Register button and attempt to register
+                        v.setEnabled(false);
+                        currentUser.signUpInBackground(new SignUpCallback() {
+                            @Override
+                            public void done(ParseException e) {
+                                v.setEnabled(true);
+                                String out_log = "";
+                                if (e == null) {
+                                    out_log = "Registration Successful";
+                                    ((Login) getActivity()).loadMainUI();
+                                } else {
+                                    Integer error_code = e.getCode();
+
+                                    if (error_code.equals(ParseException.USERNAME_TAKEN))
+                                        out_log = "That Username is taken, please enter a new username";
+                                    else if (error_code.equals(ParseException.CONNECTION_FAILED)
+                                            || error_code.equals(ParseException.TIMEOUT))
+                                        out_log = "Could not connect to WearSens server, please check your internet connection";
+                                    else {
+                                        Log.d("RequestRegisterFragment",
+                                                "While attempting registration, Parse Error Code:" + Integer.toString(error_code));
+                                    }
+                                }
+                                output_log.setText(out_log);
+                            }
+                        });
+                    }
+
+                /*
                 try {
                     if (username == null || username.equals(""))
                         o_log = "Please Enter a Username";
@@ -67,10 +106,6 @@ public class RequestRegisterFragment extends Fragment implements OnClickListener
                     {
                         //TODO: Switch to signUpInBackground()
                         currentUser.signUp();
-
-                        //This line won't execute if signUp() throws an exception,
-                        //So there is no concern of storing an invalid user object to currentUser
-                        Login.currentUser = currentUser;
                         o_log = "Registration Successful";
                         ((Login) getActivity()).loadMainUI();
                     }
@@ -79,11 +114,7 @@ public class RequestRegisterFragment extends Fragment implements OnClickListener
 
                     //TODO: Deal with the various errors
 
-                    if (error_code.equals(ParseException.PASSWORD_MISSING))
-                        o_log = "Please Enter a Password";
-                    else if (error_code.equals(ParseException.USERNAME_MISSING))
-                        o_log = "Please Enter a Username";
-                    else if (error_code.equals(ParseException.USERNAME_TAKEN))
+                   if (error_code.equals(ParseException.USERNAME_TAKEN))
                         o_log = "That Username is taken, please enter a new username";
                     else if (error_code.equals(ParseException.CONNECTION_FAILED)
                             || error_code.equals(ParseException.TIMEOUT))
@@ -93,12 +124,12 @@ public class RequestRegisterFragment extends Fragment implements OnClickListener
                                 "While attempting registration, Parse Error Code:" + Integer.toString(error_code));
                     }
 
-                }
-                output_log.setText(o_log);
-                break;
+                }*/
+                    break;
 
-            default:
-                Log.d("RequestRegisterFragment", "onClick switch statement selected default");
+                default:
+                    Log.d("RequestRegisterFragment", "onClick switch statement selected default");
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 package com.wearsens.fragments;
 
 import android.app.Fragment;
+import android.content.Intent;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -9,17 +10,25 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.UserLogin.Login;
+import com.example.MainInterface.SplashScreen;
+import com.parse.ParseUser;
 import com.example.bluetoothsensor.R;
+import android.widget.Button;
 
 
-public class ProfileFragment extends Fragment
+public class ProfileFragment extends Fragment implements View.OnClickListener
 {
+    Button logout_button;
+
 	public ProfileFragment()
     {
 	}
 
 	TextView text, welcome;
 	String userName = "Krithika";
+    ParseUser currentUser;
+
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,	Bundle savedInstanceState)
@@ -34,7 +43,35 @@ public class ProfileFragment extends Fragment
 		welcome.setTypeface(tf);
 		Drawable bg = rootView.findViewById(R.id.txtLabel).getBackground();
 		bg.setAlpha(127);
+
+        logout_button = (Button) rootView.findViewById(R.id.logoutButton);
+        logout_button.setOnClickListener(this);
+        currentUser = ParseUser.getCurrentUser();
+
+        if (currentUser == null)
+            ;
+            //TODO: Decide whether the app should be runnable without a user logged in or not
+
+
+        else
+        {
+            logout_button.setText(currentUser.getUsername() + ": Logout");
+
+        }
 		return rootView;
 	}
 
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.logoutButton:
+                Intent mainIntent = new Intent(getActivity(), Login.class);
+                mainIntent.putExtra(Login.LOGOUT_REQUEST, true);
+                mainIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(mainIntent);
+                break;
+
+            default:
+                ;
+        }
+    }
 }
