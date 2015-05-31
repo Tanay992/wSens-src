@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.util.Log;
+import android.content.Intent;
 
 import com.example.MainInterface.MainUI;
 import com.parse.ParseUser;
@@ -16,14 +17,19 @@ import com.example.bluetoothsensor.R;
 
 public class Login extends Activity {
 
-    static ParseUser currentUser;
+    public final static String LOGOUT_REQUEST = "com.UserLogin.Login.logout_request";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        currentUser = ParseUser.getCurrentUser();
+        //Check if we need to logout.
+        Intent intent = getIntent();
+        if (intent.getBooleanExtra(LOGOUT_REQUEST, false))
+            ParseUser.logOut();
+
+        ParseUser currentUser = ParseUser.getCurrentUser();
         if (currentUser != null) {
             Log.d("Login", "currentUser exists");
             loadMainUI();
@@ -55,9 +61,11 @@ public class Login extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+
     public void loadMainUI() {
         Log.d("Login", "Loading MainUI");
         Intent mainIntent = new Intent(this, MainUI.class);
+        mainIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(mainIntent);
         finish();
     }
