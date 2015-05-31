@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Date;
 import java.util.UUID;
-
 import android.Manifest;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -40,11 +39,17 @@ import com.parse.ParseException;
 import com.parse.SaveCallback;
 import com.parse.FindCallback;
 import android.net.ConnectivityManager;
-import android.util.Pair;
 
-import org.json.JSONArray;
-import com.example.MainInterface.Stats;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
 
+import java.io.FileWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+
+import java.text.SimpleDateFormat;
+import java.text.DateFormat;
 /*
  * Adapted from:
  * http://developer.android.com/samples/BluetoothLeGatt/src/com.example.android.bluetoothlegatt/BluetoothLeService.html
@@ -85,6 +90,7 @@ public class RFduinoService extends Service {
     static int DISABLE_COUNTER = 0;
     static int ConsecutiveZero = 0;
     static double LastReading = 0;
+    static int log_counter = 0;
     static int called = 0;
     static double mean, stddev, stddev_last;
 
@@ -100,6 +106,12 @@ public class RFduinoService extends Service {
     String FOOD_LIST_ID = "FoodHistory";
     String BEVERAGE_LIST_ID = "BeverageHistory";
     String SWALLOW_LIST_ID = "SwallowHistory";
+
+    String FOOD_MAP_ID = "FoodHistMap";
+    String SWALLOW_MAP_ID = "SwallowHistMap";
+
+    static Map<String,Integer> dailyFoodCnt;
+    static Map<String, Integer> dailySwallowCnt;
 
     //stores counts for past 30 days
     //each object is a map from the date as a string to the count
@@ -388,9 +400,14 @@ public class RFduinoService extends Service {
                 String[] data_split = newString.split(":");
                 if (data_split.length == 2) {
                     SensorData NewData = new SensorData(data_split[0], data_split[1]);
-
                     VibrationDataList.add(NewData);
-
+                    log_counter++;
+                    if (log_counter == 50)
+                    {
+                        //record every 50 times
+                        attemptRecordData();
+                        log_counter = 0;
+                    }
                     if (VibrationDataList.size() > 50) {
                         VibrationDataList.remove(0);
                     }
@@ -523,9 +540,8 @@ public class RFduinoService extends Service {
             query.getInBackground(id, new GetCallback<ParseObject>() {
                 public void done(ParseObject onlineData, ParseException e) {
                     if (e == null) {
-                        dailyFoodCounts = onlineData.getList(FOOD_LIST_ID);
-                        dailyBeverageCounts = onlineData.getList(BEVERAGE_LIST_ID);
-                        dailySwallowCounts = onlineData.getList(SWALLOW_LIST_ID);
+                        dailyFoodCnt = onlineData.getMap(FOOD_MAP_ID);
+                        dailySwallowCnt = onlineData.getMap(SWALLOW_MAP_ID);
                         setupCurrentDayCounts();
                     }
                     else{
@@ -598,60 +614,41 @@ public class RFduinoService extends Service {
 
     void resolveMergeConflicts(ParseObject data)
     {
-        dailyFoodCounts = data.getList(FOOD_LIST_ID);
-        dailyBeverageCounts = data.getList(BEVERAGE_LIST_ID);
-        dailySwallowCounts = data.getList(SWALLOW_LIST_ID);        //if same date, update last item only
-
-        //if different date, append date
-        Calendar cur =  Calendar.getInstance();
-        Date lastUpdate = data.getUpdatedAt();
-        Calendar last = Calendar.getInstance();
-        last.setTime(lastUpdate);
-        last.add(Calendar.HOUR, -7); //convert to PST
-
-
-        if (cur.get(Calendar.MONTH) == last.get(Calendar.MONTH) && cur.get(Calendar.DATE) == last.get(Calendar.DATE))
+        String key = getTodayDateAsStringKey();
+        Log.d("Step1", "fd cnt is " +  TODAY_FOOD_COUNT);
+        dailyFoodCnt = data.getMap(FOOD_MAP_ID);
+        if (dailyFoodCnt.containsKey(key))
         {
-            TODAY_SWALLOW_COUNT += data.getInt(SWALLOW_ID);
-            TODAY_FOOD_COUNT += data.getInt(FOOD_ID);
-            updateLists();
-        }
+            int oldFoodCnt = dailyFoodCnt.get(key);
+            TODAY_FOOD_COUNT+= oldFoodCnt;
+            Log.d("Step1", "fd cnt is " +  TODAY_FOOD_COUNT);
 
-        else
+        }
+        dailyFoodCnt.put(key, TODAY_FOOD_COUNT);
+
+        dailySwallowCnt = data.getMap(SWALLOW_MAP_ID);
+        if (dailySwallowCnt.containsKey(key))
         {
-            Map<String, Integer> newDayFood = new HashMap<String, Integer>();
-            Map<String, Integer> newDaySwallows = new HashMap<String, Integer>();
-
-            String key = getTodayDateAsStringKey();
-            newDayFood.put(key, TODAY_FOOD_COUNT);
-            newDaySwallows.put(key, TODAY_SWALLOW_COUNT);
-
-            dailyFoodCounts.add(newDayFood);
-            dailySwallowCounts.add(newDaySwallows);
+            int oldSwallowCnt = dailySwallowCnt.get(key);
+            TODAY_SWALLOW_COUNT+= oldSwallowCnt;
         }
+        dailySwallowCnt.put(key, TODAY_SWALLOW_COUNT);
+
         needsMergeWithDB = false;
     }
 
     void setDatabaseValues(ParseObject data)
     {
-        data.remove(SWALLOW_LIST_ID);
-        data.remove(FOOD_LIST_ID);
-
-        data.addAll(SWALLOW_LIST_ID, dailySwallowCounts);
-        data.addAll(FOOD_LIST_ID, dailyFoodCounts);
 
         data.put(SWALLOW_ID, TODAY_SWALLOW_COUNT);
         data.put(FOOD_ID, TODAY_FOOD_COUNT);
+        data.put(SWALLOW_MAP_ID, dailySwallowCnt);
+        data.put(FOOD_MAP_ID, dailyFoodCnt);
         //data.put(BEVERAGE_LIST_ID, TODAY_BEVERAGE_COUNT);
     }
 
     void setupCurrentDayCounts()
     {
-        TODAY_SWALLOW_COUNT = 0;
-        TODAY_FOOD_COUNT = 0;
-
-        //check date of last stored count
-        // if same day, add to lasts item, otherwise create new item
         String key = getTodayDateAsStringKey();
 
         setupSwallowCount(key);
@@ -661,35 +658,22 @@ public class RFduinoService extends Service {
 
     void setupEmptyDataValues(String key) {
 
-        dailyFoodCounts = new ArrayList<Map<String, Integer>>();
-        //dailyBeverageCounts = new ArrayList<Map<String, Integer>>();
-        dailySwallowCounts = new ArrayList<Map<String, Integer>>();
-
-//       TODAY_BEVERAGE_COUNT = 0;
         TODAY_FOOD_COUNT = 0;
+        dailyFoodCnt = new HashMap<String, Integer>();
+        dailyFoodCnt.put(key, TODAY_FOOD_COUNT);
+
+        //dailyBeverageCounts = new HashMap<String, Integer>();
         TODAY_SWALLOW_COUNT = 0;
-
-        Map<String, Integer> newDaySwallow = new HashMap<String, Integer>();
-        Map<String, Integer> newDayFood = new HashMap<String, Integer>();
-
-        newDaySwallow.put(key, TODAY_SWALLOW_COUNT);
-        dailySwallowCounts.add(newDaySwallow);
-
-        newDayFood.put(key, TODAY_FOOD_COUNT);
-        dailyFoodCounts.add(newDayFood);
-
+        dailySwallowCnt = new HashMap<String, Integer>();
+        dailySwallowCnt.put(key, TODAY_SWALLOW_COUNT);
     }
 
 
     void updateLists()
     {
-
         String key = getTodayDateAsStringKey();
-        Map<String,Integer> lastSwallowDay = dailySwallowCounts.get(dailySwallowCounts.size()-1);
-        lastSwallowDay.put(key, TODAY_SWALLOW_COUNT);
-
-        Map<String,Integer> lastFoodDay = dailyFoodCounts.get(dailyFoodCounts.size()-1);
-        lastFoodDay.put(key, TODAY_FOOD_COUNT);
+        dailyFoodCnt.put(key, TODAY_FOOD_COUNT);
+        dailySwallowCnt.put(key, TODAY_SWALLOW_COUNT);
     }
 
     String getTodayDateAsStringKey()
@@ -700,60 +684,106 @@ public class RFduinoService extends Service {
 
     void setupSwallowCount (String key) {
 
-        if (dailySwallowCounts.size() > 0)
+        if (dailySwallowCnt.containsKey(key))
         {
-            Map<String,Integer> lastSwallowDay = dailySwallowCounts.get(dailySwallowCounts.size()-1);
+            //old day
+            TODAY_SWALLOW_COUNT = dailySwallowCnt.get(key);
 
-            if (lastSwallowDay.containsKey(key)) //data for date exists in database
-            {
-                TODAY_SWALLOW_COUNT = lastSwallowDay.get(key);
-            }
-            else
-            {
-                TODAY_SWALLOW_COUNT = 0;
-                Map<String, Integer> newDay = new HashMap<String, Integer>();
-                newDay.put(key, TODAY_SWALLOW_COUNT);
-                dailySwallowCounts.add(newDay);
-            }
         }
-        //no data has been stored
-        else{
+        else
+        {
+            //create new day
             TODAY_SWALLOW_COUNT = 0;
-            Map<String, Integer> newDay = new HashMap<String, Integer>();
-            newDay.put(key, TODAY_SWALLOW_COUNT);
-            dailySwallowCounts = new ArrayList<Map<String, Integer>>();
-            dailySwallowCounts.add(newDay);
+            dailySwallowCnt.put(key, TODAY_SWALLOW_COUNT);
+
         }
     }
 
     void setupFoodCount(String key) {
 
-        if (dailyFoodCounts.size() > 0)
+        if (dailyFoodCnt.containsKey(key))
         {
-            Map<String,Integer> lastFoodDay = dailyFoodCounts.get(dailyFoodCounts.size()-1);
+            //old day
+            TODAY_FOOD_COUNT = dailyFoodCnt.get(key);
 
-            if (lastFoodDay.containsKey(key)) //data for date exists in database
-            {
-                TODAY_FOOD_COUNT = lastFoodDay.get(key);
-            }
-            else
-            {
-                TODAY_FOOD_COUNT = 0;
-                Map<String, Integer> newDay = new HashMap<String, Integer>();
-                newDay.put(key, TODAY_FOOD_COUNT);
-                dailyFoodCounts.add(newDay);
-            }
         }
-        //no data has been stored
-        else{
+        else
+        {
+            //create new day
             TODAY_FOOD_COUNT = 0;
-            Map<String, Integer> newDay = new HashMap<String, Integer>();
-            newDay.put(key, TODAY_FOOD_COUNT);
-            dailyFoodCounts = new ArrayList<Map<String, Integer>>();
-            dailyFoodCounts.add(newDay);
+            dailyFoodCnt.put(key, TODAY_FOOD_COUNT);
+        }
+    }
+
+    void attemptRecordData()
+    {
+        SharedPreferences pref = this.getApplicationContext().getSharedPreferences("MyPref", 0);
+        Boolean shouldRecord = pref.getBoolean("shouldLog", false);
+        Log.d("should record", "value is " + shouldRecord);
+        if (shouldRecord)
+        {
+            String total = "";
+            for (int i = 0; i < VibrationDataList.size(); i++) {
+                SensorData d= VibrationDataList.get(i);
+                total += d.iValue + " ";
+            }
+
+            writeToFile(total);
+
+
         }
 
     }
+
+    public void writeToFile(String data) {
+
+        try {
+            FileOutputStream fileout=openFileOutput("data.txt", MODE_APPEND);
+            OutputStreamWriter outputWriter=new OutputStreamWriter(fileout);
+            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+            Calendar cal = Calendar.getInstance();
+            String s = (dateFormat.format(cal.getTime())); //2014/08/06 16:00:22
+            outputWriter.write(s);
+            outputWriter.write('\n');
+            outputWriter.write(data);
+            outputWriter.write('\n');
+            String empty = "   ";
+            outputWriter.write(empty);
+            outputWriter.write('\n');
+            outputWriter.close();
+
+            //display file saved message
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void readFile() {
+        //reading text from file
+        try {
+            FileInputStream fileIn=openFileInput("data.txt");
+            InputStreamReader InputRead= new InputStreamReader(fileIn);
+
+            char[] inputBuffer= new char[5*50];
+            String s="";
+            int charRead;
+
+
+            while ((charRead=InputRead.read(inputBuffer))>0) {
+                // char to string conversion
+                String readstring=String.copyValueOf(inputBuffer,0,charRead);
+                s +=readstring;
+
+            }
+            InputRead.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
 }
 
 

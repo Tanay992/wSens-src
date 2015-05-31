@@ -723,10 +723,4 @@ public class MyEatingFragment extends Fragment implements BluetoothAdapter.LeSca
 
     }
 
-    void writeToFile() {
-
-        //TO DO: Implement
-    }
-
-
 }
