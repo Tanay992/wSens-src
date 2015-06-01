@@ -25,6 +25,7 @@ public class SendEmail extends Activity {
     public final String emailBody = "Text Log of Data (Attached)";
 
     public final Integer INVALID_ADDRESS = 101;
+    public final Integer FILE_NOT_FOUND = 131;
 
     protected TextView output_log;
 
@@ -122,8 +123,12 @@ public class SendEmail extends Activity {
                 publishProgress(error_msg);
                 Log.e("SendMailTask", error_msg + " message: ", e);
 
+                //TODO: Currently can't seem to associate these errors with error_numbers
+                //So using these error messages instead. Try and replace with error numbers.
                 if (error_msg.equals("Invalid Addresses"))
                     return INVALID_ADDRESS;
+                else if(error_msg.equals("IOException while sending message"))
+                    return FILE_NOT_FOUND;
 
                 return 1; //exited with error
             }
@@ -141,6 +146,9 @@ public class SendEmail extends Activity {
             statusDialog.dismiss();
             if (result.equals(INVALID_ADDRESS))
                 sendMailActivity.setOutputLog("Invalid Email Address");
+
+            if (result.equals(FILE_NOT_FOUND))
+                sendMailActivity.setOutputLog("Log File not found on device");
             if (result.equals(0))
                 sendMailActivity.finish();
         }

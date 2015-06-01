@@ -2,18 +2,27 @@ package com.Mail;
 
 import android.util.Log;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
-import java.util.Date;
 
+import javax.activation.DataHandler;
+import javax.activation.FileDataSource;
+import javax.mail.BodyPart;
 import javax.mail.Message;
 import javax.mail.MessagingException;
+import javax.mail.Multipart;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 
 //TODO:
 //Currently we have enabled access for "Less Secure Apps" for our wearsens gmail account
@@ -69,7 +78,7 @@ public class HelperMail {
             MessagingException, UnsupportedEncodingException {
 
         mailSession = Session.getDefaultInstance(emailProperties, null);
-        mailSession.setDebug(true);
+        //mailSession.setDebug(true);
         emailMessage = new MimeMessage(mailSession);
 
         emailMessage.setFrom(new InternetAddress(fromEmail, fromEmail));
@@ -83,6 +92,36 @@ public class HelperMail {
         emailMessage.setSentDate(new Date());
         //emailMessage.setContent(emailBody, "text/html");// for a html email
         emailMessage.setText(emailBody);// for a text email
+
+        // Create a multipar message
+        Multipart multipart = new MimeMultipart();
+
+        /*TODO: Remove
+        File f = new File("data.txt");
+        try {
+            FileOutputStream fos = new FileOutputStream(f);
+            fos.write(1);
+            fos.close();
+        }
+        catch (Exception e)
+        {
+            Log.d("HelperMail.java", "error message: " + e.getMessage());
+        }
+
+        TODO: Remove till here*/
+
+
+        // Add attachment
+        BodyPart messageBodyPart = new MimeBodyPart();
+        String filename = "data.txt";
+        FileDataSource source = new FileDataSource(filename);
+        messageBodyPart.setDataHandler(new DataHandler(source));
+        messageBodyPart.setFileName(filename);
+        multipart.addBodyPart(messageBodyPart);
+
+        // Send the complete message parts
+        emailMessage.setContent(multipart);
+
         Log.i("HelperMail", "Email Message created.");
         return emailMessage;
     }
