@@ -95,36 +95,6 @@ public class RequestRegisterFragment extends Fragment{
                             }
                         });
                     }
-
-                /*
-                try {
-                    if (username == null || username.equals(""))
-                        o_log = "Please Enter a Username";
-                    else if (password == null || password.equals(""))
-                        o_log = "Please Enter a Password";
-                    else
-                    {
-                        //TODO: Switch to signUpInBackground()
-                        currentUser.signUp();
-                        o_log = "Registration Successful";
-                        ((Login) getActivity()).loadMainUI();
-                    }
-                } catch (ParseException e) {
-                    Integer error_code = e.getCode();
-
-                    //TODO: Deal with the various errors
-
-                   if (error_code.equals(ParseException.USERNAME_TAKEN))
-                        o_log = "That Username is taken, please enter a new username";
-                    else if (error_code.equals(ParseException.CONNECTION_FAILED)
-                            || error_code.equals(ParseException.TIMEOUT))
-                        o_log = "Could not connect to WearSens server, please check your internet connection";
-                    else {
-                        Log.d("RequestRegisterFragment",
-                                "While attempting registration, Parse Error Code:" + Integer.toString(error_code));
-                    }
-
-                }*/
                     break;
 
                 default:

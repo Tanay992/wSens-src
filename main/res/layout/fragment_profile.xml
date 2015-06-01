@@ -24,12 +24,14 @@
         android:orientation="vertical"
         android:padding="30dp" >
 
-        <TextView
-            android:id="@+id/welcome"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#FAFAFF"
-            android:textSize="20dp" />
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:weightSum="1">
+
+        </LinearLayout>
 
         <Button
             android:layout_width="wrap_content"
@@ -38,20 +40,20 @@
             android:id="@+id/logoutButton"
             android:layout_gravity="right" />
 
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent">
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Send Log"
+            android:layout_gravity = "right"
+            android:id="@+id/sendLogButton" />
 
         <Switch
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Admin Mode"
             android:textColor="#FAFAFF"
-            android:id="@+id/switch1" />
+            android:id="@+id/switch1"
+            android:layout_gravity = "right" />
 
     </LinearLayout>
 

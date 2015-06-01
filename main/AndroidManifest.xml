@@ -69,6 +69,10 @@
             android:name="com.UserLogin.Login"
             android:label="@string/title_activity_login" >
         </activity>
+        <activity
+            android:name="com.Mail.SendEmail"
+            android:label="@string/title_activity_send_email" >
+        </activity>
     </application>
 
 </manifest>

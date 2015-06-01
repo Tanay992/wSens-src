@@ -10,6 +10,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.Mail.SendEmail;
 import com.UserLogin.Login;
 import com.example.MainInterface.SplashScreen;
 import com.parse.ParseUser;
@@ -20,6 +21,8 @@ import android.widget.Button;
 public class ProfileFragment extends Fragment implements View.OnClickListener
 {
     Button logout_button;
+    ParseUser currentUser;
+    Button sendLog;
 
 	public ProfileFragment()
     {
@@ -27,8 +30,6 @@ public class ProfileFragment extends Fragment implements View.OnClickListener
 
 	TextView text, welcome;
 	String userName = "Krithika";
-    ParseUser currentUser;
-
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,	Bundle savedInstanceState)
@@ -39,13 +40,15 @@ public class ProfileFragment extends Fragment implements View.OnClickListener
 		text.setText("Profile");
 		Typeface tf = Typeface.createFromAsset(getActivity().getAssets(),"Aaargh.ttf");
 		text.setTypeface(tf);
-		welcome = (TextView) rootView.findViewById(R.id.welcome);
-		welcome.setTypeface(tf);
 		Drawable bg = rootView.findViewById(R.id.txtLabel).getBackground();
 		bg.setAlpha(127);
 
         logout_button = (Button) rootView.findViewById(R.id.logoutButton);
         logout_button.setOnClickListener(this);
+
+        sendLog = (Button) rootView.findViewById(R.id.sendLogButton);
+        sendLog.setOnClickListener(this);
+
         currentUser = ParseUser.getCurrentUser();
 
         if (currentUser == null)
@@ -69,6 +72,10 @@ public class ProfileFragment extends Fragment implements View.OnClickListener
                 mainIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(mainIntent);
                 break;
+
+            case R.id.sendLogButton:
+                Intent intent = new Intent(getActivity(), SendEmail.class);
+                startActivity(intent);
 
             default:
                 ;

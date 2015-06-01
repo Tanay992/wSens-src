@@ -15,6 +15,7 @@ import com.parse.ParseObject;
 import com.parse.ParseQuery;
 import com.parse.ParseException;
 import com.parse.GetCallback;
+import com.parse.ParseUser;
 import com.parse.SaveCallback;
 import com.example.bluetoothsensor.R;
 import com.wearsens.fragments.MyEatingFragment;
@@ -60,6 +61,7 @@ public class StoreDataFragment extends Fragment implements OnClickListener{
                     ParseObject data = new ParseObject("DataRow");
                     data.put("tag", food_tag);
                     data.put("rawData", MyEatingFragment.VibrationDataList);
+                    data.put("UserID", ParseUser.getCurrentUser());
                     data.saveInBackground();
                     editText.setText("");
                 }
