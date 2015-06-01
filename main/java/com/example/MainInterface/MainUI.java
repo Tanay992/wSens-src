@@ -24,6 +24,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
 import com.parse.Parse;
+import com.wearsens.fragments.StoreDataFragment;
 
 public class MainUI extends Activity {
 
@@ -34,7 +35,8 @@ public class MainUI extends Activity {
 
 
 
-    String[] menuItems = { "My Eating", "My Habits", "Developer Settings"};
+    String[] menuItems = { "My Eating", "My Habits", "Developer Settings",
+            "My Profile (TODO)", "My Settings (TODO)", "Store Data", };
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -104,6 +106,14 @@ public class MainUI extends Activity {
                 break;
             case 3:
                 fragment = new ProfileFragment();
+                break;
+
+            case 4:
+                fragment = new SettingsFragment();
+                break;
+
+            case 5:
+                fragment = new StoreDataFragment();
                 break;
 
             default:
