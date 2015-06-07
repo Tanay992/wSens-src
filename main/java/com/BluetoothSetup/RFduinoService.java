@@ -81,6 +81,8 @@ public class RFduinoService extends Service {
     //ADDED
     public static ArrayList<SensorData> VibrationDataList = new ArrayList<SensorData>();
     public static ArrayList<Double> VibrationDeviationList = new ArrayList<Double>();
+    public static ArrayList<SensorData> MicDataList = new ArrayList<SensorData>();
+
 
     String ReceiveBuffer = "";
     int ReceivedData = 0;
@@ -90,7 +92,8 @@ public class RFduinoService extends Service {
     static int DISABLE_COUNTER = 0;
     static int ConsecutiveZero = 0;
     static double LastReading = 0;
-    static int log_counter = 0;
+    static int vib_log_counter = 0;
+    static int mic_log_counter = 0;
     static int called = 0;
     static double mean, stddev, stddev_last;
 
@@ -387,10 +390,44 @@ public class RFduinoService extends Service {
         ReceivedData++;
         ReceiveBuffer = ReceiveBuffer + data;
 
-        int begin = ReceiveBuffer.indexOf("B");
+        int beginVibration = ReceiveBuffer.indexOf("B");
+        int beginMicrophone = ReceiveBuffer.indexOf("M");
         int end = ReceiveBuffer.indexOf("E");
-        if (end > begin) {
-            String newString = ReceiveBuffer.substring(begin, end + 1);
+        int micDist = end - beginMicrophone;
+        int vibDist = end - beginVibration;
+
+
+        if (micDist < vibDist && micDist > 0 )
+        {
+            //store mic data
+            String newString = ReceiveBuffer.substring(beginMicrophone, end + 1);
+            ReceiveBuffer = ReceiveBuffer.replace(newString, "");
+            newString = newString.replace(" ", "");
+            newString = newString.replace("M", "");
+            newString = newString.replace("E", "");
+
+            if (newString.contains(":")) {
+                String[] data_split = newString.split(":");
+                if (data_split.length == 2) {
+                    SensorData NewData = new SensorData(data_split[0], data_split[1]);
+                    MicDataList.add(NewData);
+                    mic_log_counter++;
+                    if (mic_log_counter == 50)
+                    {
+                        //record every 50 times
+                        attemptRecordData(MicDataList, "micData.txt");
+                        mic_log_counter = 0;
+                    }
+                    if (MicDataList.size() > 50) {
+                        MicDataList.remove(0);
+                    }
+                }
+            }
+        }
+        else if (vibDist > micDist && vibDist > 0)
+        {
+            //store vib data
+            String newString = ReceiveBuffer.substring(beginVibration, end + 1);
             ReceiveBuffer = ReceiveBuffer.replace(newString, "");
             newString = newString.replace(" ", "");
             newString = newString.replace("B", "");
@@ -401,12 +438,12 @@ public class RFduinoService extends Service {
                 if (data_split.length == 2) {
                     SensorData NewData = new SensorData(data_split[0], data_split[1]);
                     VibrationDataList.add(NewData);
-                    log_counter++;
-                    if (log_counter == 50)
+                    vib_log_counter++;
+                    if (vib_log_counter == 50)
                     {
                         //record every 50 times
-                        attemptRecordData();
-                        log_counter = 0;
+                        attemptRecordData(VibrationDataList, "vibData.txt");
+                        vib_log_counter = 0;
                     }
                     if (VibrationDataList.size() > 50) {
                         VibrationDataList.remove(0);
@@ -416,6 +453,11 @@ public class RFduinoService extends Service {
 
                 }
             }
+        }
+
+        if (end > beginV) {
+
+
         }
         return dataUpdated;
     }
@@ -715,30 +757,29 @@ public class RFduinoService extends Service {
         }
     }
 
-    void attemptRecordData()
+    void attemptRecordData(ArrayList<SensorData> list, String filename)
     {
         SharedPreferences pref = this.getApplicationContext().getSharedPreferences("MyPref", 0);
         Boolean shouldRecord = pref.getBoolean("shouldLog", false);
-        Log.d("should record", "value is " + shouldRecord);
         if (shouldRecord)
         {
             String total = "";
-            for (int i = 0; i < VibrationDataList.size(); i++) {
-                SensorData d= VibrationDataList.get(i);
+            for (int i = 0; i < list.size(); i++) {
+                SensorData d= list.get(i);
                 total += d.iValue + " ";
             }
 
-            writeToFile(total);
+            writeToFile(total, filename);
 
 
         }
 
     }
 
-    public void writeToFile(String data) {
+    public void writeToFile(String data, String filename) {
 
         try {
-            FileOutputStream fileout=openFileOutput("data.txt", MODE_APPEND);
+            FileOutputStream fileout=openFileOutput(filename, MODE_APPEND);
             OutputStreamWriter outputWriter=new OutputStreamWriter(fileout);
             DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
             Calendar cal = Calendar.getInstance();
@@ -758,10 +799,10 @@ public class RFduinoService extends Service {
         }
     }
 
-    public void readFile() {
+    public void readFile(String filename) {
         //reading text from file
         try {
-            FileInputStream fileIn=openFileInput("data.txt");
+            FileInputStream fileIn=openFileInput(filename);
             InputStreamReader InputRead= new InputStreamReader(fileIn);
 
             char[] inputBuffer= new char[5*50];
